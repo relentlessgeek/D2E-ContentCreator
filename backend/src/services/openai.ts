@@ -282,6 +282,29 @@ export function parseJsonResponse<T>(response: string): T {
   }
 }
 
+// Strip markdown code fences from content (GPT sometimes wraps content in ```markdown ... ```)
+export function stripMarkdownCodeFences(content: string): string {
+  // Check if the content starts with a markdown code fence
+  const markdownFenceMatch = content.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)```\s*$/);
+  if (markdownFenceMatch) {
+    return markdownFenceMatch[1].trim();
+  }
+
+  // Also handle case where it might be at the start but not end, or have extra content
+  const startFence = /^```(?:markdown|md)?\s*\n/;
+  const endFence = /\n```\s*$/;
+
+  let result = content;
+  if (startFence.test(result)) {
+    result = result.replace(startFence, '');
+  }
+  if (endFence.test(result)) {
+    result = result.replace(endFence, '');
+  }
+
+  return result;
+}
+
 // Count words in text
 export function countWords(text: string): number {
   return text

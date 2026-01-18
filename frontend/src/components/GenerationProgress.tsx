@@ -22,7 +22,7 @@ function ProgressBar({ completed, total, failed }: { completed: number; total: n
     <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
       <div className="flex h-full">
         <div
-          className="bg-green-500 h-full transition-all duration-500"
+          className="bg-teal-500 h-full transition-all duration-500"
           style={{ width: `${completedPercent}%` }}
         />
         <div
@@ -37,7 +37,7 @@ function ProgressBar({ completed, total, failed }: { completed: number; total: n
 function StepIndicator({ step, isActive, isComplete }: { step: string; isActive: boolean; isComplete: boolean }) {
   return (
     <div className={`flex items-center gap-2 text-sm ${
-      isComplete ? 'text-green-600' : isActive ? 'text-blue-600' : 'text-gray-400'
+      isComplete ? 'text-teal-600' : isActive ? 'text-purple-600' : 'text-gray-400'
     }`}>
       {isComplete ? (
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -91,22 +91,22 @@ export default function GenerationProgress({
   };
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
+    <div className="bg-gradient-to-r from-teal-50 to-purple-50 border border-purple-200 rounded-lg p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <svg className="animate-spin h-5 w-5 text-blue-600" viewBox="0 0 24 24">
+          <svg className="animate-spin h-5 w-5 text-purple-600" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <h2 className="text-lg font-semibold text-blue-900">
+          <h2 className="text-lg font-semibold text-purple-900">
             Generating Content...
           </h2>
         </div>
 
         {/* SSE Connection Status */}
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-yellow-500'}`} />
+          <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-teal-500' : 'bg-yellow-500'}`} />
           <span className="text-xs text-gray-500">
             {sseConnected ? 'Live updates' : 'Polling'}
           </span>
@@ -122,7 +122,7 @@ export default function GenerationProgress({
 
       {/* Progress Bar */}
       <div className="space-y-2">
-        <div className="flex justify-between text-sm text-blue-700">
+        <div className="flex justify-between text-sm text-purple-700">
           <span>{getStepLabel()}</span>
           <span>
             {progress.completed} / {progress.total} completed
@@ -136,8 +136,8 @@ export default function GenerationProgress({
 
       {/* Current Operation Details */}
       {getDetailedStatus() && (
-        <div className="bg-white/50 rounded-lg px-4 py-3 border border-blue-100">
-          <div className="text-sm text-blue-800 font-medium">
+        <div className="bg-white/50 rounded-lg px-4 py-3 border border-purple-100">
+          <div className="text-sm text-purple-800 font-medium">
             {getDetailedStatus()}
           </div>
         </div>
@@ -166,15 +166,15 @@ export default function GenerationProgress({
 
       {/* Lesson Progress List */}
       {lessons.length > 0 && (
-        <div className="pt-4 border-t border-blue-200">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Lesson Progress</h3>
+        <div className="pt-4 border-t border-purple-200">
+          <h3 className="text-sm font-medium text-purple-900 mb-2">Lesson Progress</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
             {lessons.map(lesson => (
               <div
                 key={lesson.id}
                 className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${
-                  lesson.status === 'completed' ? 'bg-green-100 text-green-700' :
-                  lesson.status === 'generating' ? 'bg-blue-100 text-blue-700' :
+                  lesson.status === 'completed' ? 'bg-teal-100 text-teal-700' :
+                  lesson.status === 'generating' ? 'bg-purple-100 text-purple-700' :
                   lesson.status === 'failed' ? 'bg-red-100 text-red-700' :
                   'bg-gray-100 text-gray-600'
                 }`}
@@ -208,7 +208,7 @@ export default function GenerationProgress({
       )}
 
       {/* Info Footer */}
-      <p className="text-sm text-blue-600 pt-2">
+      <p className="text-sm text-purple-600 pt-2">
         This may take several minutes depending on the number of lessons.
         {sseConnected ? ' Progress updates in real-time.' : ' Page refreshes every 3 seconds.'}
       </p>

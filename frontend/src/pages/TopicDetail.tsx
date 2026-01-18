@@ -9,8 +9,8 @@ import GenerationProgress from '../components/GenerationProgress';
 function LessonStatusBadge({ status, retryCount }: { status: Lesson['status']; retryCount?: number }) {
   const colors = {
     pending: 'bg-gray-100 text-gray-600',
-    generating: 'bg-blue-100 text-blue-700 animate-pulse',
-    completed: 'bg-green-100 text-green-700',
+    generating: 'bg-purple-100 text-purple-700 animate-pulse',
+    completed: 'bg-teal-100 text-teal-700',
     failed: 'bg-red-100 text-red-700',
   };
 
@@ -229,7 +229,7 @@ export default function TopicDetail() {
     return (
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">Failed to load topic.</p>
-        <Link to="/" className="text-blue-600 hover:underline">
+        <Link to="/" className="text-teal-600 hover:underline">
           Back to Home
         </Link>
       </div>
@@ -274,8 +274,8 @@ export default function TopicDetail() {
           )}
           <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-              topic.status === 'completed' ? 'bg-green-100 text-green-800' :
-              topic.status === 'generating' ? 'bg-blue-100 text-blue-800' :
+              topic.status === 'completed' ? 'bg-teal-100 text-teal-800' :
+              topic.status === 'generating' ? 'bg-purple-100 text-purple-800' :
               topic.status === 'failed' ? 'bg-red-100 text-red-800' :
               'bg-yellow-100 text-yellow-800'
             }`}>
@@ -288,18 +288,18 @@ export default function TopicDetail() {
 
       {/* Generate Button for Pending Topics */}
       {topic.status === 'pending' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-blue-900 mb-2">
+        <div className="bg-gradient-to-r from-teal-50 to-purple-50 border border-teal-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-teal-900 mb-2">
             Ready to Generate Content
           </h2>
-          <p className="text-blue-700 mb-4">
+          <p className="text-teal-700 mb-4">
             Click the button below to analyze this topic, create lessons, and generate full content using AI.
             This process will create detailed lessons (2700-3300 words each) and podcast summaries (1000-1200 words each).
           </p>
           <button
             onClick={() => generateMutation.mutate()}
             disabled={generateMutation.isPending}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-gradient-to-r from-teal-500 to-purple-500 text-white rounded-lg hover:from-teal-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {generateMutation.isPending && (
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -330,15 +330,15 @@ export default function TopicDetail() {
 
       {/* Completed Status */}
       {topic.status === 'completed' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 text-green-800">
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-teal-800">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             <span className="font-medium">All content generated successfully!</span>
           </div>
-          <p className="text-sm text-green-700 mt-1">
-            Click on any lesson below to view its content. Files are also saved to: <code className="bg-green-100 px-1 rounded">generated-content/{topic.slug}/</code>
+          <p className="text-sm text-teal-700 mt-1">
+            Click on any lesson below to view its content. Files are also saved to: <code className="bg-teal-100 px-1 rounded">generated-content/{topic.slug}/</code>
           </p>
         </div>
       )}
@@ -398,7 +398,7 @@ export default function TopicDetail() {
                 onClick={() => handleLessonClick(index)}
                 className={`p-4 ${
                   lesson.status === 'completed'
-                    ? 'hover:bg-blue-50 cursor-pointer'
+                    ? 'hover:bg-teal-50 cursor-pointer'
                     : 'hover:bg-gray-50'
                 }`}
               >
@@ -409,7 +409,7 @@ export default function TopicDetail() {
                         {String(lesson.lesson_number).padStart(2, '0')}
                       </span>
                       <span className={`font-medium ${
-                        lesson.status === 'completed' ? 'text-blue-600' : 'text-gray-900'
+                        lesson.status === 'completed' ? 'text-teal-600' : 'text-gray-900'
                       }`}>
                         {lesson.title}
                       </span>

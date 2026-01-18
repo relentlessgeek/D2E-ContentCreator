@@ -52,3 +52,20 @@ export interface GenerationProgress {
   current_step: 'breakdown' | 'content' | 'podcast';
   message: string;
 }
+
+// Standalone lesson (not part of a topic/module)
+export interface StandaloneLesson {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
+  file_path: string | null;
+  podcast_file_path: string | null;
+  word_count: number;
+  podcast_word_count: number;
+  status: 'pending' | 'generating' | 'completed' | 'failed';
+  retry_count: number;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}

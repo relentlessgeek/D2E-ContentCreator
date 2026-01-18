@@ -1,8 +1,8 @@
 import path from 'path';
 import fs from 'fs';
 import db from '../db';
-import { Topic, Lesson, TopicBreakdown } from '../types';
-import { callOpenAI, parseJsonResponse, isApiKeyConfigured, countWords, categorizeError } from './openai';
+import { Topic, Lesson, TopicBreakdown, StandaloneLesson } from '../types';
+import { callOpenAI, parseJsonResponse, isApiKeyConfigured, countWords, categorizeError, stripMarkdownCodeFences } from './openai';
 import { sseManager } from './sse-manager';
 
 const CONTENT_DIR = path.join(__dirname, '../../../generated-content');
@@ -202,7 +202,10 @@ Return the COMPLETE expanded content (original + additions), properly formatted 
     temperature: 0.7,
   });
 
-  return response.choices[0]?.message?.content || existingContent;
+  const expandedContent = response.choices[0]?.message?.content || existingContent;
+
+  // Strip any markdown code fences that GPT might have added
+  return stripMarkdownCodeFences(expandedContent);
 }
 
 // Generate content for a single lesson
@@ -229,6 +232,9 @@ async function generateLessonContent(
     },
     { maxTokens: 8192, temperature: 0.7 }
   );
+
+  // Strip markdown code fences if present (GPT sometimes wraps content)
+  content = stripMarkdownCodeFences(content);
 
   let wordCount = countWords(content);
   console.log(`[Generator] Lesson ${lesson.lesson_number} content: ${wordCount} words`);
@@ -293,6 +299,9 @@ async function generatePodcastSummary(
     },
     { maxTokens: 2048, temperature: 0.8 }
   );
+
+  // Strip markdown code fences if present (GPT sometimes wraps content)
+  content = stripMarkdownCodeFences(content);
 
   let wordCount = countWords(content);
   console.log(`[Generator] Lesson ${lesson.lesson_number} podcast: ${wordCount} words`);
@@ -623,4 +632,266 @@ export function getGenerationStatus(topicId: number): {
       step,
     },
   };
+}
+
+// ============================================
+// STANDALONE LESSON GENERATION
+// ============================================
+
+const STANDALONE_CONTENT_DIR = path.join(CONTENT_DIR, 'standalone-lessons');
+
+// Ensure standalone content directory exists
+function ensureStandaloneContentDir(): string {
+  if (!fs.existsSync(STANDALONE_CONTENT_DIR)) {
+    fs.mkdirSync(STANDALONE_CONTENT_DIR, { recursive: true });
+  }
+  return STANDALONE_CONTENT_DIR;
+}
+
+// Generate content for a standalone lesson (reuses lesson_content prompt)
+async function generateStandaloneLessonContent(
+  title: string,
+  description: string,
+  maxRetries: number = 2
+): Promise<{ content: string; wordCount: number }> {
+  const minWords = 2700;
+  const maxWords = 3300;
+
+  console.log(`[Generator] Generating standalone lesson content for: ${title}`);
+
+  // Use the same lesson_content prompt but adapted for standalone
+  let content = await callOpenAI(
+    'lesson_content',
+    {
+      topic: title,
+      lesson_number: 1,
+      total_lessons: 1,
+      lesson_title: title,
+      lesson_description: description || '',
+    },
+    { maxTokens: 8192, temperature: 0.7 }
+  );
+
+  // Strip any markdown code fences that the API might have added
+  content = stripMarkdownCodeFences(content);
+
+  let wordCount = countWords(content);
+  console.log(`[Generator] Standalone lesson content: ${wordCount} words`);
+
+  if (wordCount >= minWords && wordCount <= maxWords) {
+    return { content, wordCount };
+  }
+
+  // If too short, try expansion
+  if (wordCount < minWords) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`[Generator] Content too short (${wordCount}/${minWords}), expanding (attempt ${attempt + 1})`);
+
+      content = await expandContent(
+        content,
+        wordCount,
+        minWords,
+        'lesson',
+        { topic: title, lessonTitle: title }
+      );
+
+      wordCount = countWords(content);
+      console.log(`[Generator] After expansion: ${wordCount} words`);
+
+      if (wordCount >= minWords) {
+        return { content, wordCount };
+      }
+    }
+  }
+
+  if (wordCount > maxWords) {
+    console.log(`[Generator] Content slightly over max (${wordCount}/${maxWords}), accepting`);
+  }
+
+  return { content, wordCount };
+}
+
+// Generate podcast for a standalone lesson (reuses podcast_summary prompt)
+async function generateStandalonePodcast(
+  title: string,
+  lessonContent: string,
+  maxRetries: number = 2
+): Promise<{ content: string; wordCount: number }> {
+  const minWords = 1000;
+  const maxWords = 1200;
+
+  console.log(`[Generator] Generating standalone podcast for: ${title}`);
+
+  let content = await callOpenAI(
+    'podcast_summary',
+    {
+      topic: title,
+      lesson_number: 1,
+      lesson_title: title,
+      lesson_content: lessonContent,
+    },
+    { maxTokens: 2048, temperature: 0.8 }
+  );
+
+  // Strip any markdown code fences that the API might have added
+  content = stripMarkdownCodeFences(content);
+
+  let wordCount = countWords(content);
+  console.log(`[Generator] Standalone podcast: ${wordCount} words`);
+
+  if (wordCount >= minWords && wordCount <= maxWords) {
+    return { content, wordCount };
+  }
+
+  if (wordCount < minWords) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`[Generator] Podcast too short (${wordCount}/${minWords}), expanding (attempt ${attempt + 1})`);
+
+      content = await expandContent(
+        content,
+        wordCount,
+        minWords,
+        'podcast',
+        { topic: title, lessonTitle: title }
+      );
+
+      wordCount = countWords(content);
+      console.log(`[Generator] After expansion: ${wordCount} words`);
+
+      if (wordCount >= minWords) {
+        return { content, wordCount };
+      }
+    }
+  }
+
+  if (wordCount > maxWords) {
+    console.log(`[Generator] Podcast slightly over max (${wordCount}/${maxWords}), accepting`);
+  }
+
+  return { content, wordCount };
+}
+
+// Create a new standalone lesson
+export function createStandaloneLesson(title: string, description: string): StandaloneLesson {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const result = db.prepare(`
+    INSERT INTO standalone_lessons (title, slug, description, status)
+    VALUES (?, ?, ?, 'pending')
+  `).run(title, slug, description || null);
+
+  const lesson = db.prepare('SELECT * FROM standalone_lessons WHERE id = ?')
+    .get(result.lastInsertRowid) as StandaloneLesson;
+
+  console.log(`[Generator] Created standalone lesson: ${title} (ID: ${lesson.id})`);
+  return lesson;
+}
+
+// Get all standalone lessons
+export function getStandaloneLessons(): StandaloneLesson[] {
+  return db.prepare('SELECT * FROM standalone_lessons ORDER BY created_at DESC').all() as StandaloneLesson[];
+}
+
+// Get a single standalone lesson by ID
+export function getStandaloneLesson(id: number): StandaloneLesson | undefined {
+  return db.prepare('SELECT * FROM standalone_lessons WHERE id = ?').get(id) as StandaloneLesson | undefined;
+}
+
+// Delete a standalone lesson
+export function deleteStandaloneLesson(id: number): void {
+  const lesson = getStandaloneLesson(id);
+  if (lesson) {
+    // Delete associated files
+    if (lesson.file_path) {
+      const filePath = path.join(CONTENT_DIR, lesson.file_path);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    if (lesson.podcast_file_path) {
+      const podcastPath = path.join(CONTENT_DIR, lesson.podcast_file_path);
+      if (fs.existsSync(podcastPath)) {
+        fs.unlinkSync(podcastPath);
+      }
+    }
+  }
+
+  db.prepare('DELETE FROM standalone_lessons WHERE id = ?').run(id);
+  console.log(`[Generator] Deleted standalone lesson ID: ${id}`);
+}
+
+// Generate content for a standalone lesson
+export async function generateStandaloneLesson(lessonId: number): Promise<StandaloneLesson> {
+  const lesson = getStandaloneLesson(lessonId);
+
+  if (!lesson) {
+    throw new Error('Standalone lesson not found');
+  }
+
+  if (!isApiKeyConfigured()) {
+    throw new Error('OpenAI API key is not configured. Please add it to your .env file.');
+  }
+
+  // Update status to generating
+  db.prepare('UPDATE standalone_lessons SET status = ?, last_error = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run('generating', lessonId);
+
+  const contentDir = ensureStandaloneContentDir();
+
+  try {
+    // Generate lesson content
+    const { content: lessonContent, wordCount: lessonWordCount } = await generateStandaloneLessonContent(
+      lesson.title,
+      lesson.description || ''
+    );
+
+    // Save lesson content
+    const lessonFileName = `${lesson.slug}.md`;
+    const lessonFilePath = path.join(contentDir, lessonFileName);
+    fs.writeFileSync(lessonFilePath, lessonContent, 'utf-8');
+
+    // Update lesson with content info
+    db.prepare(`
+      UPDATE standalone_lessons
+      SET file_path = ?, word_count = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(`standalone-lessons/${lessonFileName}`, lessonWordCount, lessonId);
+
+    // Generate podcast
+    const { content: podcastContent, wordCount: podcastWordCount } = await generateStandalonePodcast(
+      lesson.title,
+      lessonContent
+    );
+
+    // Save podcast content
+    const podcastFileName = `${lesson.slug}-podcast.md`;
+    const podcastFilePath = path.join(contentDir, podcastFileName);
+    fs.writeFileSync(podcastFilePath, podcastContent, 'utf-8');
+
+    // Update lesson as completed
+    db.prepare(`
+      UPDATE standalone_lessons
+      SET podcast_file_path = ?, podcast_word_count = ?, status = 'completed', last_error = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(`standalone-lessons/${podcastFileName}`, podcastWordCount, lessonId);
+
+    console.log(`[Generator] Completed standalone lesson: ${lesson.title}`);
+
+    return getStandaloneLesson(lessonId) as StandaloneLesson;
+  } catch (error) {
+    const errorInfo = categorizeError(error);
+    const currentRetryCount = (lesson.retry_count || 0) + 1;
+
+    db.prepare(`
+      UPDATE standalone_lessons
+      SET status = 'failed', last_error = ?, retry_count = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(errorInfo.message, currentRetryCount, lessonId);
+
+    console.error(`[Generator] Failed standalone lesson: ${errorInfo.message}`);
+    throw error;
+  }
 }

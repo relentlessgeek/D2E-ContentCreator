@@ -37,6 +37,24 @@ CREATE TABLE IF NOT EXISTS lessons (
     FOREIGN KEY (topic_id) REFERENCES topics(id) ON DELETE CASCADE
 );
 
+-- Standalone lessons table: stores individual lessons not part of a module
+CREATE TABLE IF NOT EXISTS standalone_lessons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    description TEXT,
+    file_path TEXT,
+    podcast_file_path TEXT,
+    word_count INTEGER DEFAULT 0,
+    podcast_word_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'generating', 'completed', 'failed')),
+    retry_count INTEGER DEFAULT 0,
+    last_error TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_lessons_topic_id ON lessons(topic_id);
 CREATE INDEX IF NOT EXISTS idx_topics_status ON topics(status);
+CREATE INDEX IF NOT EXISTS idx_standalone_lessons_status ON standalone_lessons(status);

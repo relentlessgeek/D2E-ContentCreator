@@ -187,3 +187,71 @@ export async function getPodcastContent(id: number): Promise<{ content: string; 
   if (!res.ok) throw new Error('Failed to fetch podcast content');
   return res.json();
 }
+
+// Standalone Lessons
+export interface StandaloneLesson {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
+  file_path: string | null;
+  podcast_file_path: string | null;
+  word_count: number;
+  podcast_word_count: number;
+  status: 'pending' | 'generating' | 'completed' | 'failed';
+  retry_count: number;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getStandaloneLessons(): Promise<StandaloneLesson[]> {
+  const res = await fetch(`${API_BASE}/standalone-lessons`);
+  if (!res.ok) throw new Error('Failed to fetch standalone lessons');
+  return res.json();
+}
+
+export async function getStandaloneLesson(id: number): Promise<StandaloneLesson> {
+  const res = await fetch(`${API_BASE}/standalone-lessons/${id}`);
+  if (!res.ok) throw new Error('Failed to fetch standalone lesson');
+  return res.json();
+}
+
+export async function createStandaloneLesson(title: string, description: string): Promise<StandaloneLesson> {
+  const res = await fetch(`${API_BASE}/standalone-lessons`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Failed to create standalone lesson');
+  }
+  return res.json();
+}
+
+export async function deleteStandaloneLesson(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/standalone-lessons/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete standalone lesson');
+}
+
+export async function generateStandaloneLesson(id: number): Promise<{ message: string; lesson: StandaloneLesson }> {
+  const res = await fetch(`${API_BASE}/standalone-lessons/${id}/generate`, { method: 'POST' });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Failed to start generation');
+  }
+  return res.json();
+}
+
+export async function getStandaloneLessonContent(id: number): Promise<{ content: string; word_count: number }> {
+  const res = await fetch(`${API_BASE}/standalone-lessons/${id}/content`);
+  if (!res.ok) throw new Error('Failed to fetch standalone lesson content');
+  return res.json();
+}
+
+export async function getStandalonePodcastContent(id: number): Promise<{ content: string; word_count: number }> {
+  const res = await fetch(`${API_BASE}/standalone-lessons/${id}/podcast`);
+  if (!res.ok) throw new Error('Failed to fetch standalone podcast content');
+  return res.json();
+}
